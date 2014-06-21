@@ -8,38 +8,22 @@ from mrjob.job import MRStep
 import re
 import md5
 
-def baseN(num,b,numerals="ABCDEFGHIJKLMNOPQRSTUVWXYZ"):
-    return ((num == 0) and numerals[0]) or (baseN(num // b, b, numerals).lstrip(numerals[0]) + numerals[num % b])
-
 class MRMedallionNumbers(MRJob):
 
     def mapper_init(self):
-        self.cksum_number_map = {}
-        def add(s):
-            self.cksum_number_map[md5.md5(s).hexdigest().upper()] = s
-        # http://www.nyc.gov/html/tlc_medallion_info/html/tlc_lookup.shtml
-        #The correct formats are:
-        #one number, one letter, two numbers. For example: 5X55
-        #two letters, three numbers. For example: XX555
-        #three letters, three numbers. For example: XXX555
-        for i in range(1000):
-            for j in range(26**3):
-                istr = str(i)
-                alpha_string = baseN(j,26)
-                if len(alpha_string) == 1:
-                    add(istr[0] + alpha_string + istr[1:])
-                else:
-                    add(alpha_string + istr)
-            
+        self.cksum_number_map = json.load(open('rainbow.json'))
+
     def mapper(self, _, line):
         data = line.split(',')
-        hack_no = self.cksum_number_map.get(data[0])
-        if hack_no:
-            yield(str(hack_no), None)
+        medallion_no = self.cksum_number_map.get(data[0], 'UNKNOWN')
+        yield(str(medallion_no), 1)
+
     def combiner(self, key, value):
-        yield(key, None)
+        yield(key, sum(value))
+        
     def reducer(self, key, value):
-        yield(key, None)
+        yield(key, sum(value))
+
 
 if __name__ == '__main__':
     MRMedallionNumbers.run()
